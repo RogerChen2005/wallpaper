@@ -10,13 +10,14 @@
 #define IDC_CONFIG                      1000
 #define IDC_NEW                         1003
 #define IDC_SAVE                        1004
-#define IDC_APLLY                       1005
 #define IDC_APPLY                       1005
 #define IDC_PATH                        1006
 #define IDC_MUTE                        1007
 #define IDC_PATHTEXT                    1008
 #define IDC_VIDEOSETTING                1009
 #define IDC_CONFIGTEXT                  1010
+#define IDC_PATH2                       1011
+#define IDC_VIDEOSETTING2               1012
 
 // Next default values for new objects
 // 

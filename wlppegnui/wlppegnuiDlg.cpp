@@ -7,6 +7,7 @@
 #include "wlppegnui.h"
 #include "wlppegnuiDlg.h"
 #include "afxdialogex.h"
+#include "vector"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -52,6 +53,8 @@ END_MESSAGE_MAP()
 
 CwlppegnuiDlg::CwlppegnuiDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_WLPPEGNUI_DIALOG, pParent)
+	, pathShow(_T(""))
+	, cmdShow(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -61,6 +64,8 @@ void CwlppegnuiDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_CONFIG, m_config);
 	DDX_Control(pDX, IDC_MUTE, m_mute);
+	DDX_Text(pDX, IDC_PATH2, pathShow);
+	DDX_Text(pDX, IDC_PATH, cmdShow);
 }
 
 BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
@@ -70,9 +75,20 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_SAVE, &CwlppegnuiDlg::OnSave)
 	ON_BN_CLICKED(IDC_NEW, &CwlppegnuiDlg::OnNew)
 	ON_LBN_DBLCLK(IDC_CONFIG, &CwlppegnuiDlg::OnDblclkConfig)
-	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
+//	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
 	ON_BN_CLICKED(IDC_APPLY, &CwlppegnuiDlg::OnApply)
+	ON_LBN_SELCHANGE(IDC_CONFIG, &CwlppegnuiDlg::OnSelchangeConfig)
 END_MESSAGE_MAP()
+
+void CwlppegnuiDlg::readConfig(CString pathname) {
+	conFig temp;
+	TCHAR szValue[MAX_PATH + 1] = _T("");
+	GetPrivateProfileString(_T("Settings"), _T("name"), _T("Config"), szValue, MAX_PATH, pathname); temp.name = szValue;
+	GetPrivateProfileString(_T("Path"), _T("path"), _T("None"), szValue, MAX_PATH, pathname); temp.path = szValue;
+	int check = GetPrivateProfileInt(_T("Settings"), _T("mute"), 0, pathname);check == 0 ? temp.mute = false : temp.mute = true;
+	GetPrivateProfileString(_T("Extra"), _T("Cmd"), _T("None"), szValue, MAX_PATH, pathname); temp.Cmd = szValue;
+	configs.push_back(temp);
+}
 
 
 // CwlppegnuiDlg 消息处理程序
@@ -105,9 +121,25 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	//  执行此操作
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
-
 	// TODO: 在此添加额外的初始化代码
-
+	path = "H:\\code\\package\\wlppegnui";
+	int cnt = 1;
+	CFileFind finder;   //查找是否存在ini文件，若不存在，则生成一个新的默认设置的ini文件，这样就保证了我们更改后的设置每次都可用
+	BOOL ifFind = finder.FindFile(path + "\\configs\\*.ini");
+	CString configPath;
+	while (ifFind){
+		ifFind = finder.FindNextFile();
+		if(finder.IsDots()) continue;
+		if (!finder.IsDirectory()) {
+			configPath = finder.GetFilePath();
+			readConfig(configPath);
+		}
+		else continue;
+	}
+	int Size = configs.size();
+	for (int i = 0; i < Size;i++){
+		m_config.InsertString(i,configs[i].name);
+	}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -180,13 +212,25 @@ void CwlppegnuiDlg::OnDblclkConfig()
 }
 
 
-void CwlppegnuiDlg::OnSetfocusConfig()
-{
-	// TODO: 在此添加控件通知处理程序代码
-}
+//void CwlppegnuiDlg::OnSetfocusConfig()
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//}
 
 
 void CwlppegnuiDlg::OnApply()
 {
 	// TODO: 在此添加控件通知处理程序代码
+}
+
+
+void CwlppegnuiDlg::OnSelchangeConfig()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int index = m_config.GetCurSel();
+	UpdateData(TRUE);
+	pathShow = configs[index].path;
+	m_mute.SetCheck(configs[index].mute);
+	cmdShow = configs[index].Cmd;
+	UpdateData(FALSE);
 }
