@@ -67,6 +67,8 @@ void CwlppegnuiDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_MUTE, m_mute);
 	DDX_Text(pDX, IDC_PATH2, pathShow);
 	DDX_Text(pDX, IDC_PATH, cmdShow);
+	//  DDX_Text(pDX, IDC_EDITT, m_Edit);
+	DDX_Control(pDX, IDC_EDITT, m_edit);
 }
 
 BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
@@ -81,10 +83,12 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_LBN_SELCHANGE(IDC_CONFIG, &CwlppegnuiDlg::OnSelchangeConfig)
 	ON_WM_CLOSE()
 	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
+	ON_EN_KILLFOCUS(IDC_EDITT, &CwlppegnuiDlg::OnKillfocusEditt)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
 	conFig temp;
+	temp.location = pathname;
 	TCHAR szValue[MAX_PATH + 1] = _T("");
 	GetPrivateProfileString(_T("Settings"), _T("name"), _T("Config"), szValue, MAX_PATH, pathname); temp.name = szValue;
 	GetPrivateProfileString(_T("Path"), _T("path"), _T("None"), szValue, MAX_PATH, pathname); temp.path = szValue;
@@ -143,6 +147,7 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	for (int i = 0; i < Size;i++){
 		m_config.InsertString(i,configs[i].name);
 	}
+	m_edit.ShowWindow(SW_HIDE);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -200,18 +205,60 @@ HCURSOR CwlppegnuiDlg::OnQueryDragIcon()
 void CwlppegnuiDlg::OnSave()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	int index = m_config.GetCurSel();
+	if (index >= configs.size()) return;
+	UpdateData(TRUE);
+	configs[index].Cmd = cmdShow;
+	configs[index].path = pathShow;
+	configs[index].mute = m_mute.GetCheck();
+	WritePrivateProfileString(_T("Path"), _T("path"), pathShow, configs[index].location);
+	CString tempInt; tempInt.Format(_T("%d"), m_mute.GetCheck());
+	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
+	WritePrivateProfileString(_T("Extra"), _T("Cmd"), cmdShow, configs[index].location);
+	UpdateData(FALSE);
 }
 
 
 void CwlppegnuiDlg::OnNew()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	int index = configs.size();
+	if (index >= configs.size()) return;
+	CString tempPath = path + "\\configs\\";
+	CString tempInt; tempInt.Format(_T("%d"), index);
+	tempPath += tempInt + _T(".ini");
+	conFig temp;
+	temp.name = "New Config";temp.Cmd = "";
+	temp.location = tempPath; temp.path = ""; temp.mute = false;
+	configs.push_back(temp);
+	CFileFind finder;
+	BOOL ifFind = finder.FindFile(tempPath);
+	if (!ifFind){
+		WritePrivateProfileString(_T("Settings"), _T("name"), configs[index].name, configs[index].location);
+		WritePrivateProfileString(_T("Path"), _T("path"), configs[index].path, configs[index].location);
+		tempInt.Format(_T("%d"), configs[index].mute);
+		WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
+		WritePrivateProfileString(_T("Extra"), _T("Cmd"), configs[index].Cmd, configs[index].location);
+	}	
+	m_config.InsertString(index, configs[index].name);
 }
 
 
 void CwlppegnuiDlg::OnDblclkConfig()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	//NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
+	CRect rc;
+	m_config.GetItemRect(m_config.GetCurSel(),rc);
+	m_edit.SetParent(&m_config);//转换坐标为列表框中的坐标
+	m_edit.MoveWindow(rc);//移动Edit到RECT坐在的位置;
+	CString tempShow;
+	m_config.GetText(m_config.GetCurSel(), tempShow);
+	m_edit.SetWindowText(tempShow);//将该子项中的值放在Edit控件中；
+	m_edit.ShowWindow(SW_SHOW);//显示Edit控件；
+	m_edit.SetFocus();//设置Edit焦点
+	m_edit.ShowCaret();//显示光标
+	m_edit.SetSel(-1);//将光标移动到最后
 }
 
 BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
@@ -248,6 +295,8 @@ void ShowW(LPCWSTR lpParameter) {
 		MoveWindow(hFfplay, 0, 0, width, height, 0);
 		EnumWindows(EnumWindowsProc, 0);// 找到第二个workerw窗口并隐藏它
 	}
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
 }
 
 void CwlppegnuiDlg::OnApply()
@@ -268,6 +317,7 @@ void CwlppegnuiDlg::OnSelchangeConfig()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	int index = m_config.GetCurSel();
+	if (index >= configs.size()) return;
 	UpdateData(TRUE);
 	pathShow = configs[index].path;
 	m_mute.SetCheck(configs[index].mute);
@@ -293,4 +343,20 @@ void CwlppegnuiDlg::OnClose()
 void CwlppegnuiDlg::OnSetfocusConfig()
 {
 	// TODO: 在此添加控件通知处理程序代码
+}
+
+
+void CwlppegnuiDlg::OnKillfocusEditt()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString tem;
+	m_edit.GetWindowText(tem); //得到用户输入的新的内容
+	int index = m_config.GetCurSel();
+	if (index >= configs.size()) return;
+	m_config.DeleteString(index);
+	CString str; m_edit.GetWindowTextW(str);
+	m_config.InsertString(index,str);
+	configs[index].name = str;
+	WritePrivateProfileString(_T("Settings"), _T("name"), str, configs[index].location);
+	m_edit.ShowWindow(SW_HIDE); //隐藏编辑框
 }

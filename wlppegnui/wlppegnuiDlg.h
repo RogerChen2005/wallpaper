@@ -8,12 +8,14 @@
 struct conFig {
 	//title
 	CString name;
-    //path
+    //video path
 	CString path;
 	//setting
-	bool mute;
+	bool mute = false;
 	//extra
 	CString Cmd;
+	//inifile path
+	CString location;
 };
 
 // CwlppegnuiDlg 对话框
@@ -57,4 +59,7 @@ public:
 	CString cmdShow;
 	afx_msg void OnClose();
 	afx_msg void OnSetfocusConfig();
+//	CString m_Edit;
+	CEdit m_edit;
+	afx_msg void OnKillfocusEditt();
 };
