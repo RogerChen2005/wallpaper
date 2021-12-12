@@ -13,6 +13,7 @@
 #define new DEBUG_NEW
 #endif
 
+HWND hFfplay = NULL;
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -78,6 +79,8 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 //	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
 	ON_BN_CLICKED(IDC_APPLY, &CwlppegnuiDlg::OnApply)
 	ON_LBN_SELCHANGE(IDC_CONFIG, &CwlppegnuiDlg::OnSelchangeConfig)
+	ON_WM_CLOSE()
+	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
@@ -211,16 +214,53 @@ void CwlppegnuiDlg::OnDblclkConfig()
 	// TODO: 在此添加控件通知处理程序代码
 }
 
+BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
+	HWND hDefView = FindWindowEx(hwnd, 0, L"SHELLDLL_DefView", 0);
+	if (hDefView != 0) {
+		// 找它的下—个窗口，类名为workerw，隐藏它
+		HWND hWorkerw = FindWindowEx(0, hwnd, L"WorkerW", 0);
+		ShowWindow(hWorkerw, SW_HIDE);
+		return FALSE;
+	}
+	return TRUE;
+}
 
-//void CwlppegnuiDlg::OnSetfocusConfig()
-//{
-//	// TODO: 在此添加控件通知处理程序代码
-//}
-
+void ShowW(LPCWSTR lpParameter) {
+	if (hFfplay!=NULL) {
+		DWORD dwPID = 0;
+		GetWindowThreadProcessId(hFfplay, &dwPID);
+		char strCmd[MAX_PATH] = { 0 };
+		sprintf_s(strCmd, "taskkill /pid %d -f", dwPID);
+		system(strCmd);
+	}
+	STARTUPINFO si{ 0 };
+	//si.dwFlags = STARTF_USESHOWWINDOW;
+	si.wShowWindow = SW_HIDE;
+	PROCESS_INFORMATION pi{ 0 };
+	if (CreateProcess(L"H:\\code\\package\\wlppegn\\ffplay\\bin\\ffplay.exe", (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
+		Sleep(300);//等待视频播放器启动完成
+		HWND hProgman = FindWindow(L"Progman", 0);// 找到PI窗口
+		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
+		hFfplay = FindWindow(L"SDL_app", 0);// 找到视频窗口
+		SetParent(hFfplay, hProgman);// 将视频窗口设苦为PM的子窗口
+		int width = GetSystemMetrics(0);
+		int height = GetSystemMetrics(1);
+		MoveWindow(hFfplay, 0, 0, width, height, 0);
+		EnumWindows(EnumWindowsProc, 0);// 找到第二个workerw窗口并隐藏它
+	}
+}
 
 void CwlppegnuiDlg::OnApply()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CString fcmd = _T(" ");
+	fcmd += pathShow;
+	fcmd += _T(" -noborder -fs -loop 0");
+	if (m_mute.GetCheck()) {
+		fcmd += _T(" -an");
+	}
+	LPCWSTR tempStr = fcmd;
+	ShowW(tempStr);
 }
 
 
@@ -233,4 +273,24 @@ void CwlppegnuiDlg::OnSelchangeConfig()
 	m_mute.SetCheck(configs[index].mute);
 	cmdShow = configs[index].Cmd;
 	UpdateData(FALSE);
+}
+
+
+void CwlppegnuiDlg::OnClose()
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	if (hFfplay != NULL) {
+		DWORD dwPID = 0;
+		GetWindowThreadProcessId(hFfplay, &dwPID);
+		char strCmd[MAX_PATH] = { 0 };
+		sprintf_s(strCmd, "taskkill /pid %d -f", dwPID);
+		system(strCmd);
+	}
+	CDialogEx::OnClose();
+}
+
+
+void CwlppegnuiDlg::OnSetfocusConfig()
+{
+	// TODO: 在此添加控件通知处理程序代码
 }

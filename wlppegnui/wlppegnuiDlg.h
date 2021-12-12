@@ -55,4 +55,6 @@ public:
 	afx_msg void OnSelchangeConfig();
 	CString pathShow;
 	CString cmdShow;
+	afx_msg void OnClose();
+	afx_msg void OnSetfocusConfig();
 };
