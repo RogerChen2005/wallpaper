@@ -25,6 +25,7 @@ class CwlppegnuiDlg : public CDialogEx
 public:
 	CwlppegnuiDlg(CWnd* pParent = nullptr);	// 标准构造函数
 	CString path;
+	CString ffpath;
 	std::vector<conFig> configs;
 	void readConfig(CString pathname);
 // 对话框数据
@@ -70,4 +71,7 @@ private:
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg void OnAboutD();
+	afx_msg void OnExitProc();
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	afx_msg void OnSetPath();
 };

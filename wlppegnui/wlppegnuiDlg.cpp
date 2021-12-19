@@ -8,6 +8,7 @@
 #include "wlppegnuiDlg.h"
 #include "afxdialogex.h"
 #include "vector"
+#include "CinputDlg.h"
 
 #define WM_USER_NOTIFYICON WM_USER+1
 
@@ -123,6 +124,9 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_FILECHOOSE, &CwlppegnuiDlg::OnFile)
 	ON_BN_CLICKED(IDC_DEL, &CwlppegnuiDlg::OnClickedDel)
 	ON_COMMAND(ID_32773, &CwlppegnuiDlg::OnAboutD)
+	ON_COMMAND(ID_32772, &CwlppegnuiDlg::OnExitProc)
+	ON_WM_CTLCOLOR()
+	ON_COMMAND(ID_32771, &CwlppegnuiDlg::OnSetPath)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
@@ -168,11 +172,24 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 	// TODO: 在此添加额外的初始化代码
+	UpdateData(TRUE);
  	GetModuleFileName(NULL, path.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);
 	path.ReleaseBuffer();
 	path = path.Left(path.ReverseFind('\\'));
+	CFileFind pathFinder;
+	bool ifCus = pathFinder.FindFile(path + "\\settings\\ffpath.ini");
+	if (ifCus) {
+		ifCus = pathFinder.FindNextFileW();
+		TCHAR szValue[MAX_PATH + 1] = _T("");
+		GetPrivateProfileString(_T("path"), _T("location"),_T(""), szValue, MAX_PATH, pathFinder.GetFilePath());
+		ffpath = szValue;
+		if (ffpath.IsEmpty()) {
+			ffpath = path + _T("\\ffplay\\bin\\ffplay.exe");
+		}
+	}
+	else { ffpath = path + _T("\\ffplay\\bin\\ffplay.exe"); }
 	int cnt = 1;
-	CFileFind finder;   //查找是否存在ini文件，若不存在，则生成一个新的默认设置的ini文件，这样就保证了我们更改后的设置每次都可用
+	CFileFind finder;
 	BOOL ifFind = finder.FindFile(path + "\\configs\\*.ini");
 	CString configPath;
 	while (ifFind){
@@ -195,15 +212,15 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 		m_mute.SetCheck(configs[0].mute);
 		cmdShow = configs[0].Cmd;
 	}
-
 	m_notify.cbSize = sizeof(NOTIFYICONDATA);
 	m_notify.hWnd = this->m_hWnd;
 	m_notify.uID = IDR_MAINFRAME;
 	m_notify.hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME));
 	wcscpy_s(m_notify.szTip, L"Video Wallpaper");
 	m_notify.uCallbackMessage = WM_USER_NOTIFYICON;
-	m_notify.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP; //OK,下面就是托盘产生了. 
+	m_notify.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 	Shell_NotifyIcon(NIM_ADD, &m_notify);
+	UpdateData(FALSE);
 	return true;
 }
 
@@ -245,6 +262,10 @@ void CwlppegnuiDlg::OnPaint()
 	}
 	else
 	{
+		//CPaintDC dc(this);
+		//CRect rect;
+		//GetClientRect(rect);
+		//dc.FillSolidRect(rect, RGB(252, 252, 252));
 		CDialogEx::OnPaint();
 	}
 }
@@ -327,7 +348,6 @@ void CwlppegnuiDlg::OnDblclkConfig()
 BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
 	HWND hDefView = FindWindowEx(hwnd, 0, L"SHELLDLL_DefView", 0);
 	if (hDefView != 0) {
-		// 找它的下—个窗口，类名为workerw，隐藏它
 		HWND hWorkerw = FindWindowEx(0, hwnd, L"WorkerW", 0);
 		ShowWindow(hWorkerw, SW_HIDE);
 		return FALSE;
@@ -347,8 +367,7 @@ void ShowW(LPCWSTR lpParameter,CString path) {
 	//si.dwFlags = STARTF_USESHOWWINDOW;
 	si.wShowWindow = SW_HIDE;
 	PROCESS_INFORMATION pi{ 0 };
-	CString ffpath = path + _T("\\ffplay\\bin\\ffplay.exe");
-	if (CreateProcess(ffpath, (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
+	if (CreateProcess(path, (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
 		Sleep(500);//等待视频播放器启动完成
 		HWND hProgman = FindWindow(L"Progman", 0);// 找到PI窗口
 		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
@@ -373,7 +392,7 @@ void CwlppegnuiDlg::OnApply()
 		fcmd += _T(" -an");
 	}
 	LPCWSTR tempStr = fcmd;
-	ShowW(tempStr,path);
+	ShowW(tempStr,ffpath);
 }
 
 
@@ -393,14 +412,7 @@ void CwlppegnuiDlg::OnSelchangeConfig()
 void CwlppegnuiDlg::OnClose()
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	if (hFfplay != NULL) {
-		DWORD dwPID = 0;
-		GetWindowThreadProcessId(hFfplay, &dwPID);
-		char strCmd[MAX_PATH] = { 0 };
-		sprintf_s(strCmd, "taskkill /pid %d -f", dwPID);
-		system(strCmd);
-	}
-	CDialogEx::OnClose();
+	this->ShowWindow(SW_HIDE);
 }
 
 
@@ -478,13 +490,10 @@ LRESULT CwlppegnuiDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_SYSCOMMAND:
-		if (wParam == SC_MINIMIZE) {
-			AfxGetApp()->m_pMainWnd->ShowWindow(SW_HIDE);
-			return 0;
-		}
-		if (wParam == SC_CLOSE) {
-			::Shell_NotifyIcon(NIM_DELETE, &m_notify);
-		}
+		//if (wParam == SC_MINIMIZE) {
+		//	AfxGetApp()->m_pMainWnd->ShowWindow(SW_HIDE);
+		//	return 0;
+		//}
 		break;
 	}
 	return CDialogEx::WindowProc(message, wParam, lParam);
@@ -495,4 +504,41 @@ void CwlppegnuiDlg::OnAboutD()
 	// TODO: 在此添加命令处理程序代码
 	CAboutDlg aDlg;
 	aDlg.DoModal();
+}
+
+
+void CwlppegnuiDlg::OnExitProc()
+{
+	// TODO: 在此添加命令处理程序代码
+	if (hFfplay != NULL) {
+		DWORD dwPID = 0;
+		GetWindowThreadProcessId(hFfplay, &dwPID);
+		char strCmd[MAX_PATH] = { 0 };
+		sprintf_s(strCmd, "taskkill /pid %d -f", dwPID);
+		system(strCmd);
+	}
+	::Shell_NotifyIcon(NIM_DELETE, &m_notify);
+	DestroyWindow();
+}
+
+
+HBRUSH CwlppegnuiDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+	// TODO:  在此更改 DC 的任何特性
+	// TODO:  如果默认的不是所需画笔，则返回另一个画笔
+	return hbr;
+}
+
+
+void CwlppegnuiDlg::OnSetPath()
+{
+	// TODO: 在此添加命令处理程序代码
+	CinputDlg iDlg;
+	CString Path;
+	if(iDlg.DoModal() == IDOK){
+		Path = iDlg.m_input;
+	}
+	WritePrivateProfileString(L"path", L"location",Path,path+L"\\settings\\ffpath.ini");
 }

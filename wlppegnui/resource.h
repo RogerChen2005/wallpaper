@@ -8,6 +8,7 @@
 #define IDD_WLPPEGNUI_DIALOG            102
 #define IDR_MAINFRAME                   128
 #define IDR_MENU1                       130
+#define IDD_INPUT                       132
 #define IDC_CONFIG                      1000
 #define IDC_NEW                         1003
 #define IDC_SAVE                        1004
@@ -24,6 +25,7 @@
 #define IDC_FILECHOOSE                  1015
 #define IDC_NEW2                        1016
 #define IDC_DEL                         1016
+#define IDC_EDIT1                       1017
 #define ID_32771                        32771
 #define ID_32772                        32772
 #define ID_32773                        32773
@@ -32,9 +34,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        131
+#define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32774
-#define _APS_NEXT_CONTROL_VALUE         1017
+#define _APS_NEXT_CONTROL_VALUE         1018
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
