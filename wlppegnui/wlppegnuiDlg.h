@@ -50,6 +50,7 @@ public:
 	CListBox m_config;
 	CButton m_mute;
 	afx_msg void OnSave();
+	afx_msg LRESULT OnNotifyMsg(WPARAM wparam, LPARAM lparam);
 	afx_msg void OnNew();
 	afx_msg void OnDblclkConfig();
 //	afx_msg void OnSetfocusConfig();
@@ -62,4 +63,11 @@ public:
 //	CString m_Edit;
 	CEdit m_edit;
 	afx_msg void OnKillfocusEditt();
+	afx_msg void OnFile();
+	afx_msg void OnClickedDel();
+private:
+	NOTIFYICONDATA m_notify;
+	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+public:
+	afx_msg void OnAboutD();
 };

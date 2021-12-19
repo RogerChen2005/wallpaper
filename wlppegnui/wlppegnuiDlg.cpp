@@ -9,6 +9,8 @@
 #include "afxdialogex.h"
 #include "vector"
 
+#define WM_USER_NOTIFYICON WM_USER+1
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -33,6 +35,7 @@ public:
 // 实现
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -50,6 +53,38 @@ END_MESSAGE_MAP()
 
 // CwlppegnuiDlg 对话框
 
+LRESULT  CwlppegnuiDlg::OnNotifyMsg(WPARAM wparam, LPARAM lparam)
+//wParam接收的是图标的ID，而lParam接收的是鼠标的行为   
+{
+	if (wparam != IDR_MAINFRAME)
+		return    1;
+	switch (lparam)
+	{
+	case  WM_RBUTTONUP://右键起来时弹出快捷菜单，这里只有一个“关闭”   
+	{
+		LPPOINT    lpoint = new    tagPOINT;
+		::GetCursorPos(lpoint);//得到鼠标位置   
+		CMenu    menu;
+		menu.CreatePopupMenu();//声明一个弹出式菜单   
+		//增加菜单项“关闭”，点击则发送消息WM_DESTROY给主窗口（已   
+		//隐藏），将程序结束。   
+		menu.AppendMenu(MF_STRING, WM_DESTROY, _T("关闭"));
+		//确定弹出式菜单的位置   
+		menu.TrackPopupMenu(TPM_LEFTALIGN, lpoint->x, lpoint->y, this);
+		//资源回收   
+		HMENU    hmenu = menu.Detach();
+		menu.DestroyMenu();
+		delete    lpoint;
+	}
+	break;
+	case    WM_LBUTTONDBLCLK://双击左键的处理   
+	{
+		this->ShowWindow(SW_SHOW);//简单的显示主窗口完事儿   
+	}
+	break;
+	}
+	return 0;
+}
 
 
 CwlppegnuiDlg::CwlppegnuiDlg(CWnd* pParent /*=nullptr*/)
@@ -72,6 +107,7 @@ void CwlppegnuiDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
+	ON_MESSAGE(WM_USER_NOTIFYICON, OnNotifyMsg)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
@@ -84,6 +120,9 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_WM_CLOSE()
 	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
 	ON_EN_KILLFOCUS(IDC_EDITT, &CwlppegnuiDlg::OnKillfocusEditt)
+	ON_BN_CLICKED(IDC_FILECHOOSE, &CwlppegnuiDlg::OnFile)
+	ON_BN_CLICKED(IDC_DEL, &CwlppegnuiDlg::OnClickedDel)
+	ON_COMMAND(ID_32773, &CwlppegnuiDlg::OnAboutD)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
@@ -129,7 +168,9 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 	// TODO: 在此添加额外的初始化代码
-	path = "H:\\code\\package\\wlppegnui";
+ 	GetModuleFileName(NULL, path.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);
+	path.ReleaseBuffer();
+	path = path.Left(path.ReverseFind('\\'));
 	int cnt = 1;
 	CFileFind finder;   //查找是否存在ini文件，若不存在，则生成一个新的默认设置的ini文件，这样就保证了我们更改后的设置每次都可用
 	BOOL ifFind = finder.FindFile(path + "\\configs\\*.ini");
@@ -148,7 +189,22 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 		m_config.InsertString(i,configs[i].name);
 	}
 	m_edit.ShowWindow(SW_HIDE);
-	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
+	if (configs.size()>0) {
+		m_config.SetCurSel(0);
+		pathShow = configs[0].path;
+		m_mute.SetCheck(configs[0].mute);
+		cmdShow = configs[0].Cmd;
+	}
+
+	m_notify.cbSize = sizeof(NOTIFYICONDATA);
+	m_notify.hWnd = this->m_hWnd;
+	m_notify.uID = IDR_MAINFRAME;
+	m_notify.hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME));
+	wcscpy_s(m_notify.szTip, L"Video Wallpaper");
+	m_notify.uCallbackMessage = WM_USER_NOTIFYICON;
+	m_notify.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP; //OK,下面就是托盘产生了. 
+	Shell_NotifyIcon(NIM_ADD, &m_notify);
+	return true;
 }
 
 void CwlppegnuiDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -222,10 +278,11 @@ void CwlppegnuiDlg::OnSave()
 void CwlppegnuiDlg::OnNew()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CTime time;
+	time = CTime::GetCurrentTime();
+	CString tempInt = time.Format(_T("%Y-%m-%d-%H-%M-%S"));
 	int index = configs.size();
-	if (index >= configs.size()) return;
 	CString tempPath = path + "\\configs\\";
-	CString tempInt; tempInt.Format(_T("%d"), index);
 	tempPath += tempInt + _T(".ini");
 	conFig temp;
 	temp.name = "New Config";temp.Cmd = "";
@@ -240,7 +297,13 @@ void CwlppegnuiDlg::OnNew()
 		WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
 		WritePrivateProfileString(_T("Extra"), _T("Cmd"), configs[index].Cmd, configs[index].location);
 	}	
+	UpdateData(TRUE);
 	m_config.InsertString(index, configs[index].name);
+	m_config.SetCurSel(index);
+	pathShow = configs[index].path;
+	m_mute.SetCheck(configs[index].mute);
+	cmdShow = configs[index].Cmd;
+	UpdateData(FALSE);
 }
 
 
@@ -272,7 +335,7 @@ BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
 	return TRUE;
 }
 
-void ShowW(LPCWSTR lpParameter) {
+void ShowW(LPCWSTR lpParameter,CString path) {
 	if (hFfplay!=NULL) {
 		DWORD dwPID = 0;
 		GetWindowThreadProcessId(hFfplay, &dwPID);
@@ -284,8 +347,9 @@ void ShowW(LPCWSTR lpParameter) {
 	//si.dwFlags = STARTF_USESHOWWINDOW;
 	si.wShowWindow = SW_HIDE;
 	PROCESS_INFORMATION pi{ 0 };
-	if (CreateProcess(L"H:\\code\\package\\wlppegn\\ffplay\\bin\\ffplay.exe", (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
-		Sleep(300);//等待视频播放器启动完成
+	CString ffpath = path + _T("\\ffplay\\bin\\ffplay.exe");
+	if (CreateProcess(ffpath, (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
+		Sleep(500);//等待视频播放器启动完成
 		HWND hProgman = FindWindow(L"Progman", 0);// 找到PI窗口
 		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
 		hFfplay = FindWindow(L"SDL_app", 0);// 找到视频窗口
@@ -302,14 +366,14 @@ void ShowW(LPCWSTR lpParameter) {
 void CwlppegnuiDlg::OnApply()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CString fcmd = _T(" ");
-	fcmd += pathShow;
+	CString fcmd = _T(" \"");
+	fcmd += pathShow + _T("\"");
 	fcmd += _T(" -noborder -fs -loop 0");
 	if (m_mute.GetCheck()) {
 		fcmd += _T(" -an");
 	}
 	LPCWSTR tempStr = fcmd;
-	ShowW(tempStr);
+	ShowW(tempStr,path);
 }
 
 
@@ -359,4 +423,76 @@ void CwlppegnuiDlg::OnKillfocusEditt()
 	configs[index].name = str;
 	WritePrivateProfileString(_T("Settings"), _T("name"), str, configs[index].location);
 	m_edit.ShowWindow(SW_HIDE); //隐藏编辑框
+}
+
+
+void CwlppegnuiDlg::OnFile()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+	CFileDialog dlg(TRUE,_T("Video Files"),NULL,OFN_HIDEREADONLY,_T("Video Files|*.avi;*.mp4;*.flv;*mkv| All Files (*.*)|*.*||"),this);
+	if (dlg.DoModal() == IDOK){
+		pathShow = dlg.GetPathName();
+	}
+	UpdateData(FALSE);
+}
+
+
+void CwlppegnuiDlg::OnClickedDel()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int index = m_config.GetCurSel();
+	if (index >= configs.size()) return;
+	UpdateData(TRUE);
+	cmdShow = "";
+	pathShow = "";
+	m_mute.SetCheck(0);
+	m_config.DeleteString(index);
+	CFile delFile;
+	delFile.Remove(configs[index].location);
+	UpdateData(FALSE);
+}
+
+
+LRESULT CwlppegnuiDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	// TODO: 在此添加专用代码和/或调用基类
+	switch (message) //判断消息类型
+	{
+	case WM_USER_NOTIFYICON:
+		if (lParam == WM_LBUTTONDBLCLK) {
+			if (AfxGetApp()->m_pMainWnd->IsWindowVisible()) {
+				AfxGetApp()->m_pMainWnd->ShowWindow(SW_HIDE); 
+			}
+			else {
+				AfxGetApp()->m_pMainWnd->ShowWindow(SW_SHOW);
+			}
+		}
+		else if (lParam == WM_RBUTTONDOWN) {
+			CMenu menu;
+			menu.LoadMenu(IDR_MENU1);
+			CMenu* pMenu = menu.GetSubMenu(0);
+			CPoint pos;
+			GetCursorPos(&pos);
+			pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pos.x, pos.y, AfxGetMainWnd());
+		}
+		break;
+	case WM_SYSCOMMAND:
+		if (wParam == SC_MINIMIZE) {
+			AfxGetApp()->m_pMainWnd->ShowWindow(SW_HIDE);
+			return 0;
+		}
+		if (wParam == SC_CLOSE) {
+			::Shell_NotifyIcon(NIM_DELETE, &m_notify);
+		}
+		break;
+	}
+	return CDialogEx::WindowProc(message, wParam, lParam);
+}
+
+void CwlppegnuiDlg::OnAboutD()
+{
+	// TODO: 在此添加命令处理程序代码
+	CAboutDlg aDlg;
+	aDlg.DoModal();
 }
