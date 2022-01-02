@@ -12,10 +12,22 @@ struct conFig {
 	CString path;
 	//setting
 	bool mute = false;
+	bool full = false;
 	//extra
 	CString Cmd;
 	//inifile path
 	CString location;
+};
+
+struct WinRect {
+	int width;
+	int height;
+	double proPortion;
+	WinRect() {
+		width = GetSystemMetrics(0);
+		height = GetSystemMetrics(1);
+		proPortion = width * 1.0  / height ;
+	}
 };
 
 // CwlppegnuiDlg 对话框
@@ -68,10 +80,12 @@ public:
 	afx_msg void OnClickedDel();
 private:
 	NOTIFYICONDATA m_notify;
+	WinRect cRect;
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg void OnAboutD();
 	afx_msg void OnExitProc();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnSetPath();
+	CButton fulFill;
 };

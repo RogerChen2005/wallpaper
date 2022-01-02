@@ -26,6 +26,8 @@
 #define IDC_NEW2                        1016
 #define IDC_DEL                         1016
 #define IDC_EDIT1                       1017
+#define IDC_MUTE2                       1017
+#define IDC_FULL                        1017
 #define ID_32771                        32771
 #define ID_32772                        32772
 #define ID_32773                        32773

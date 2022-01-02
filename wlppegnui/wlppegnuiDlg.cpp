@@ -105,6 +105,7 @@ void CwlppegnuiDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_PATH, cmdShow);
 	//  DDX_Text(pDX, IDC_EDITT, m_Edit);
 	DDX_Control(pDX, IDC_EDITT, m_edit);
+	DDX_Control(pDX, IDC_FULL, fulFill);
 }
 
 BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
@@ -136,6 +137,7 @@ void CwlppegnuiDlg::readConfig(CString pathname) {
 	GetPrivateProfileString(_T("Settings"), _T("name"), _T("Config"), szValue, MAX_PATH, pathname); temp.name = szValue;
 	GetPrivateProfileString(_T("Path"), _T("path"), _T("None"), szValue, MAX_PATH, pathname); temp.path = szValue;
 	int check = GetPrivateProfileInt(_T("Settings"), _T("mute"), 0, pathname);check == 0 ? temp.mute = false : temp.mute = true;
+	check = GetPrivateProfileInt(_T("Settings"), _T("full"), 0, pathname); check == 0 ? temp.full = false : temp.full = true;
 	GetPrivateProfileString(_T("Extra"), _T("Cmd"), _T("None"), szValue, MAX_PATH, pathname); temp.Cmd = szValue;
 	configs.push_back(temp);
 }
@@ -210,6 +212,7 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 		m_config.SetCurSel(0);
 		pathShow = configs[0].path;
 		m_mute.SetCheck(configs[0].mute);
+		fulFill.SetCheck(configs[0].full);
 		cmdShow = configs[0].Cmd;
 	}
 	m_notify.cbSize = sizeof(NOTIFYICONDATA);
@@ -291,6 +294,8 @@ void CwlppegnuiDlg::OnSave()
 	WritePrivateProfileString(_T("Path"), _T("path"), pathShow, configs[index].location);
 	CString tempInt; tempInt.Format(_T("%d"), m_mute.GetCheck());
 	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
+	tempInt.Format(_T("%d"), fulFill.GetCheck());
+	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, configs[index].location);
 	WritePrivateProfileString(_T("Extra"), _T("Cmd"), cmdShow, configs[index].location);
 	UpdateData(FALSE);
 }
@@ -307,7 +312,7 @@ void CwlppegnuiDlg::OnNew()
 	tempPath += tempInt + _T(".ini");
 	conFig temp;
 	temp.name = "New Config";temp.Cmd = "";
-	temp.location = tempPath; temp.path = ""; temp.mute = false;
+	temp.location = tempPath; temp.path = ""; temp.mute = false; temp.full = false;
 	configs.push_back(temp);
 	CFileFind finder;
 	BOOL ifFind = finder.FindFile(tempPath);
@@ -316,6 +321,8 @@ void CwlppegnuiDlg::OnNew()
 		WritePrivateProfileString(_T("Path"), _T("path"), configs[index].path, configs[index].location);
 		tempInt.Format(_T("%d"), configs[index].mute);
 		WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
+		tempInt.Format(_T("%d"), configs[index].full);
+		WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, configs[index].location);
 		WritePrivateProfileString(_T("Extra"), _T("Cmd"), configs[index].Cmd, configs[index].location);
 	}	
 	UpdateData(TRUE);
@@ -355,7 +362,7 @@ BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
 	return TRUE;
 }
 
-void ShowW(LPCWSTR lpParameter,CString path) {
+void ShowW(LPCWSTR lpParameter,CString path,bool full) {
 	if (hFfplay!=NULL) {
 		DWORD dwPID = 0;
 		GetWindowThreadProcessId(hFfplay, &dwPID);
@@ -373,9 +380,18 @@ void ShowW(LPCWSTR lpParameter,CString path) {
 		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
 		hFfplay = FindWindow(L"SDL_app", 0);// 找到视频窗口
 		SetParent(hFfplay, hProgman);// 将视频窗口设苦为PM的子窗口
-		int width = GetSystemMetrics(0);
-		int height = GetSystemMetrics(1);
-		MoveWindow(hFfplay, 0, 0, width, height, 0);
+		if (full) {
+			RECT cRct;
+			GetWindowRect(hFfplay, &cRct);
+			int width = cRct.right - cRct.left;
+			int x  =(GetSystemMetrics(0) - width) / 2;
+			MoveWindow(hFfplay, x, 0, cRct.right - cRct.left, cRct.bottom - cRct.top, 0);
+		}
+		else {
+			int width = GetSystemMetrics(0);
+			int height = GetSystemMetrics(1);
+			MoveWindow(hFfplay, 0, 0, width, height, 0);
+		}
 		EnumWindows(EnumWindowsProc, 0);// 找到第二个workerw窗口并隐藏它
 	}
 	CloseHandle(pi.hProcess);
@@ -387,12 +403,19 @@ void CwlppegnuiDlg::OnApply()
 	// TODO: 在此添加控件通知处理程序代码
 	CString fcmd = _T(" \"");
 	fcmd += pathShow + _T("\"");
-	fcmd += _T(" -noborder -fs -loop 0");
+	fcmd += _T(" -noborder -loop 0");
 	if (m_mute.GetCheck()) {
 		fcmd += _T(" -an");
 	}
+	if (fulFill.GetCheck()) {
+		CString sHeight;sHeight.Format(L"%d", cRect.height);
+		fcmd += L" -y " + sHeight;
+	}
+	else {
+		fcmd += L" -fs";
+	}
 	LPCWSTR tempStr = fcmd;
-	ShowW(tempStr,ffpath);
+	ShowW(tempStr,ffpath,fulFill.GetCheck());
 }
 
 
@@ -404,6 +427,7 @@ void CwlppegnuiDlg::OnSelchangeConfig()
 	UpdateData(TRUE);
 	pathShow = configs[index].path;
 	m_mute.SetCheck(configs[index].mute);
+	fulFill.SetCheck(configs[index].full);
 	cmdShow = configs[index].Cmd;
 	UpdateData(FALSE);
 }
