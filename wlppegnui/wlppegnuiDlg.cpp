@@ -9,6 +9,7 @@
 #include "afxdialogex.h"
 #include "vector"
 #include "CinputDlg.h"
+#include "CConfigDlg.h"
 
 #define WM_USER_NOTIFYICON WM_USER+1
 
@@ -104,7 +105,6 @@ void CwlppegnuiDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_PATH2, pathShow);
 	DDX_Text(pDX, IDC_PATH, cmdShow);
 	//  DDX_Text(pDX, IDC_EDITT, m_Edit);
-	DDX_Control(pDX, IDC_EDITT, m_edit);
 	DDX_Control(pDX, IDC_FULL, fulFill);
 }
 
@@ -113,7 +113,6 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_BN_CLICKED(IDC_SAVE, &CwlppegnuiDlg::OnSave)
 	ON_BN_CLICKED(IDC_NEW, &CwlppegnuiDlg::OnNew)
 	ON_LBN_DBLCLK(IDC_CONFIG, &CwlppegnuiDlg::OnDblclkConfig)
 //	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
@@ -121,13 +120,13 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_LBN_SELCHANGE(IDC_CONFIG, &CwlppegnuiDlg::OnSelchangeConfig)
 	ON_WM_CLOSE()
 	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
-	ON_EN_KILLFOCUS(IDC_EDITT, &CwlppegnuiDlg::OnKillfocusEditt)
 	ON_BN_CLICKED(IDC_FILECHOOSE, &CwlppegnuiDlg::OnFile)
 	ON_BN_CLICKED(IDC_DEL, &CwlppegnuiDlg::OnClickedDel)
 	ON_COMMAND(ID_32773, &CwlppegnuiDlg::OnAboutD)
 	ON_COMMAND(ID_32772, &CwlppegnuiDlg::OnExitProc)
 	ON_WM_CTLCOLOR()
 	ON_COMMAND(ID_32771, &CwlppegnuiDlg::OnSetPath)
+	ON_COMMAND(ID_32774, &CwlppegnuiDlg::OnPause)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
@@ -207,7 +206,6 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	for (int i = 0; i < Size;i++){
 		m_config.InsertString(i,configs[i].name);
 	}
-	m_edit.ShowWindow(SW_HIDE);
 	if (configs.size()>0) {
 		m_config.SetCurSel(0);
 		pathShow = configs[0].path;
@@ -282,24 +280,34 @@ HCURSOR CwlppegnuiDlg::OnQueryDragIcon()
 
 
 
-void CwlppegnuiDlg::OnSave()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	int index = m_config.GetCurSel();
-	if (index >= configs.size()) return;
-	UpdateData(TRUE);
-	configs[index].Cmd = cmdShow;
-	configs[index].path = pathShow;
-	configs[index].mute = m_mute.GetCheck();
-	WritePrivateProfileString(_T("Path"), _T("path"), pathShow, configs[index].location);
-	CString tempInt; tempInt.Format(_T("%d"), m_mute.GetCheck());
-	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
-	tempInt.Format(_T("%d"), fulFill.GetCheck());
-	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, configs[index].location);
-	WritePrivateProfileString(_T("Extra"), _T("Cmd"), cmdShow, configs[index].location);
-	UpdateData(FALSE);
-}
+//void CwlppegnuiDlg::OnSave()
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//	int index = m_config.GetCurSel();
+//	if (index >= configs.size()) return;
+//	UpdateData(TRUE);
+//	configs[index].Cmd = cmdShow;
+//	configs[index].path = pathShow;
+//	configs[index].mute = m_mute.GetCheck();
+//	WritePrivateProfileString(_T("Path"), _T("path"), pathShow, configs[index].location);
+//	CString tempInt; tempInt.Format(_T("%d"), m_mute.GetCheck());
+//	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
+//	tempInt.Format(_T("%d"), fulFill.GetCheck());
+//	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, configs[index].location);
+//	WritePrivateProfileString(_T("Extra"), _T("Cmd"), cmdShow, configs[index].location);
+//	UpdateData(FALSE);
+//}
 
+void saveConfig(conFig& config)
+{
+	WritePrivateProfileString(_T("Path"), _T("path"), config.path, config.location);
+	CString tempInt; tempInt.Format(_T("%d"), config.mute);
+	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, config.location);
+	tempInt.Format(_T("%d"), config.full);
+	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, config.location);
+	WritePrivateProfileString(_T("Extra"), _T("Cmd"), config.Cmd, config.location);
+	WritePrivateProfileString(_T("Settings"), _T("name"), config.name, config.location);
+}
 
 void CwlppegnuiDlg::OnNew()
 {
@@ -311,27 +319,34 @@ void CwlppegnuiDlg::OnNew()
 	CString tempPath = path + "\\configs\\";
 	tempPath += tempInt + _T(".ini");
 	conFig temp;
-	temp.name = "New Config";temp.Cmd = "";
-	temp.location = tempPath; temp.path = ""; temp.mute = false; temp.full = false;
-	configs.push_back(temp);
+	temp.location = tempPath;
 	CFileFind finder;
 	BOOL ifFind = finder.FindFile(tempPath);
 	if (!ifFind){
-		WritePrivateProfileString(_T("Settings"), _T("name"), configs[index].name, configs[index].location);
+		/*WritePrivateProfileString(_T("Settings"), _T("name"), configs[index].name, configs[index].location);
 		WritePrivateProfileString(_T("Path"), _T("path"), configs[index].path, configs[index].location);
 		tempInt.Format(_T("%d"), configs[index].mute);
 		WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, configs[index].location);
 		tempInt.Format(_T("%d"), configs[index].full);
 		WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, configs[index].location);
-		WritePrivateProfileString(_T("Extra"), _T("Cmd"), configs[index].Cmd, configs[index].location);
+		WritePrivateProfileString(_T("Extra"), _T("Cmd"), configs[index].Cmd, configs[index].location);*/
+		CConfigDlg m_Dlg;
+		m_Dlg.digConfig.location = temp.location;
+		m_Dlg.DoModal();
+		temp = m_Dlg.digConfig;
+		configs.push_back(temp);
+		saveConfig(configs[index]);
+		m_config.InsertString(index,configs[index].name);
+		m_config.SetCurSel(index);
+		refreshWindow(temp);
 	}	
-	UpdateData(TRUE);
+	/*UpdateData(TRUE);
 	m_config.InsertString(index, configs[index].name);
 	m_config.SetCurSel(index);
 	pathShow = configs[index].path;
 	m_mute.SetCheck(configs[index].mute);
 	cmdShow = configs[index].Cmd;
-	UpdateData(FALSE);
+	UpdateData(FALSE);*/
 }
 
 
@@ -339,17 +354,28 @@ void CwlppegnuiDlg::OnDblclkConfig()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	//NM_LISTVIEW* pNMListView = (NM_LISTVIEW*)pNMHDR;
-	CRect rc;
-	m_config.GetItemRect(m_config.GetCurSel(),rc);
-	m_edit.SetParent(&m_config);//转换坐标为列表框中的坐标
-	m_edit.MoveWindow(rc);//移动Edit到RECT坐在的位置;
-	CString tempShow;
-	m_config.GetText(m_config.GetCurSel(), tempShow);
-	m_edit.SetWindowText(tempShow);//将该子项中的值放在Edit控件中；
-	m_edit.ShowWindow(SW_SHOW);//显示Edit控件；
-	m_edit.SetFocus();//设置Edit焦点
-	m_edit.ShowCaret();//显示光标
-	m_edit.SetSel(-1);//将光标移动到最后
+	//CRect rc;
+	//m_config.GetItemRect(m_config.GetCurSel(),rc);
+	//m_edit.SetParent(&m_config);//转换坐标为列表框中的坐标
+	//m_edit.MoveWindow(rc);//移动Edit到RECT坐在的位置;
+	//CString tempShow;
+	//m_config.GetText(m_config.GetCurSel(), tempShow);
+	//m_edit.SetWindowText(tempShow);//将该子项中的值放在Edit控件中；
+	//m_edit.ShowWindow(SW_SHOW);//显示Edit控件；
+	//m_edit.SetFocus();//设置Edit焦点
+	//m_edit.ShowCaret();//显示光标
+	//m_edit.SetSel(-1);//将光标移动到最后
+	CConfigDlg m_cDlg;
+	int index = m_config.GetCurSel();
+	if (index >= configs.size()) return;
+	m_cDlg.digConfig = configs[index];
+	int ext = m_cDlg.DoModal();
+	configs[index] = m_cDlg.digConfig;
+	refreshWindow(configs[index]);
+	m_config.DeleteString(index);
+	m_config.InsertString(index,configs[index].name);
+	m_config.SetCurSel(index);
+	saveConfig(configs[index]);
 }
 
 BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
@@ -424,12 +450,7 @@ void CwlppegnuiDlg::OnSelchangeConfig()
 	// TODO: 在此添加控件通知处理程序代码
 	int index = m_config.GetCurSel();
 	if (index >= configs.size()) return;
-	UpdateData(TRUE);
-	pathShow = configs[index].path;
-	m_mute.SetCheck(configs[index].mute);
-	fulFill.SetCheck(configs[index].full);
-	cmdShow = configs[index].Cmd;
-	UpdateData(FALSE);
+	refreshWindow(configs[index]);
 }
 
 
@@ -446,20 +467,20 @@ void CwlppegnuiDlg::OnSetfocusConfig()
 }
 
 
-void CwlppegnuiDlg::OnKillfocusEditt()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	CString tem;
-	m_edit.GetWindowText(tem); //得到用户输入的新的内容
-	int index = m_config.GetCurSel();
-	if (index >= configs.size()) return;
-	m_config.DeleteString(index);
-	CString str; m_edit.GetWindowTextW(str);
-	m_config.InsertString(index,str);
-	configs[index].name = str;
-	WritePrivateProfileString(_T("Settings"), _T("name"), str, configs[index].location);
-	m_edit.ShowWindow(SW_HIDE); //隐藏编辑框
-}
+//void CwlppegnuiDlg::OnKillfocusEditt()
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//	CString tem;
+//	m_edit.GetWindowText(tem); //得到用户输入的新的内容
+//	int index = m_config.GetCurSel();
+//	if (index >= configs.size()) return;
+//	m_config.DeleteString(index);
+//	CString str; m_edit.GetWindowTextW(str);
+//	m_config.InsertString(index,str);
+//	configs[index].name = str;
+//	WritePrivateProfileString(_T("Settings"), _T("name"), str, configs[index].location);
+//	m_edit.ShowWindow(SW_HIDE); //隐藏编辑框
+//}
 
 
 void CwlppegnuiDlg::OnFile()
@@ -484,6 +505,7 @@ void CwlppegnuiDlg::OnClickedDel()
 	pathShow = "";
 	m_mute.SetCheck(0);
 	m_config.DeleteString(index);
+	m_config.SetCurSel(index-1);
 	CFile delFile;
 	delFile.Remove(configs[index].location);
 	UpdateData(FALSE);
@@ -521,6 +543,16 @@ LRESULT CwlppegnuiDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	return CDialogEx::WindowProc(message, wParam, lParam);
+}
+
+void CwlppegnuiDlg::refreshWindow(conFig &config)
+{
+	UpdateData(TRUE);
+	pathShow = config.path;
+	m_mute.SetCheck(config.mute);
+	fulFill.SetCheck(config.full);
+	cmdShow = config.Cmd;
+	UpdateData(FALSE);
 }
 
 void CwlppegnuiDlg::OnAboutD()
@@ -565,4 +597,30 @@ void CwlppegnuiDlg::OnSetPath()
 		Path = iDlg.m_input;
 	}
 	WritePrivateProfileString(L"path", L"location",Path,path+L"\\settings\\ffpath.ini");
+}
+
+void Pause() {
+	SetForegroundWindow(hFfplay);
+	Sleep(100);
+	INPUT input;
+	WORD vkey = 0x50; // see link below
+	input.type = INPUT_KEYBOARD;
+	input.ki.wScan = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
+	input.ki.time = 0;
+	input.ki.dwExtraInfo = 0;
+	input.ki.wVk = vkey;
+	input.ki.dwFlags = 0; // there is no KEYEVENTF_KEYDOWN
+	SendInput(1, &input, sizeof(INPUT));
+	input.ki.dwFlags = KEYEVENTF_KEYUP;
+	SendInput(1, &input, sizeof(INPUT));
+}
+
+
+void CwlppegnuiDlg::OnPause()
+{
+	// TODO: 在此添加命令处理程序代码
+	if (hFfplay != NULL) {
+		Pause();
+		SetForegroundWindow();
+	}
 }

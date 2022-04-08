@@ -17,6 +17,16 @@ struct conFig {
 	CString Cmd;
 	//inifile path
 	CString location;
+	// For copy
+	bool operator = (conFig& tmp) {
+		name = tmp.name;
+		path = tmp.path;
+		mute = tmp.mute;
+		full = tmp.full;
+		Cmd = tmp.Cmd;
+		location = tmp.location;
+		return true;      
+	}
 };
 
 struct WinRect {
@@ -62,7 +72,7 @@ protected:
 public:
 	CListBox m_config;
 	CButton m_mute;
-	afx_msg void OnSave();
+	//afx_msg void OnSave();
 	afx_msg LRESULT OnNotifyMsg(WPARAM wparam, LPARAM lparam);
 	afx_msg void OnNew();
 	afx_msg void OnDblclkConfig();
@@ -74,18 +84,20 @@ public:
 	afx_msg void OnClose();
 	afx_msg void OnSetfocusConfig();
 //	CString m_Edit;
-	CEdit m_edit;
-	afx_msg void OnKillfocusEditt();
+//	CEdit m_edit;
+//	afx_msg void OnKillfocusEditt();
 	afx_msg void OnFile();
 	afx_msg void OnClickedDel();
 private:
 	NOTIFYICONDATA m_notify;
 	WinRect cRect;
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	void refreshWindow(conFig &config);
 public:
 	afx_msg void OnAboutD();
 	afx_msg void OnExitProc();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnSetPath();
 	CButton fulFill;
+	afx_msg void OnPause();
 };

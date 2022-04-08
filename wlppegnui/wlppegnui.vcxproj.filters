@@ -36,6 +36,9 @@
     <ClInclude Include="CinputDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CConfigDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="wlppegnui.cpp">
@@ -48,6 +51,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CinputDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CConfigDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
