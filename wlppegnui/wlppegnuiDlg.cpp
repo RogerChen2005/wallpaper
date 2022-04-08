@@ -388,7 +388,7 @@ BOOL CALLBACK EnumWindowsProc(_In_ HWND hwnd, _In_ LPARAM Lparam) {
 	return TRUE;
 }
 
-void ShowW(LPCWSTR lpParameter,CString path,bool full) {
+void ShowW(LPCWSTR lpParameter,CString path,bool full, bool horw) {
 	if (hFfplay!=NULL) {
 		DWORD dwPID = 0;
 		GetWindowThreadProcessId(hFfplay, &dwPID);
@@ -406,22 +406,38 @@ void ShowW(LPCWSTR lpParameter,CString path,bool full) {
 		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
 		hFfplay = FindWindow(L"SDL_app", 0);// 找到视频窗口
 		SetParent(hFfplay, hProgman);// 将视频窗口设苦为PM的子窗口
+		int swidth = GetSystemMetrics(0);
+		int sheight = GetSystemMetrics(1);
 		if (full) {
 			RECT cRct;
 			GetWindowRect(hFfplay, &cRct);
-			int width = cRct.right - cRct.left;
-			int x  =(GetSystemMetrics(0) - width) / 2;
-			MoveWindow(hFfplay, x, 0, cRct.right - cRct.left, cRct.bottom - cRct.top, 0);
+			if (horw) {
+				int width = cRct.right - cRct.left;
+				int x = (swidth - width) / 2;
+				MoveWindow(hFfplay, x, 0,cRct.right - cRct.left,cRct.bottom - cRct.top,0);
+			}
+			else {
+				int height = cRct.bottom - cRct.top;
+				int x = (sheight - height) / 2;
+				MoveWindow(hFfplay, 0, x,cRct.right - cRct.left,cRct.bottom - cRct.top, 0);
+			}
 		}
 		else {
-			int width = GetSystemMetrics(0);
-			int height = GetSystemMetrics(1);
-			MoveWindow(hFfplay, 0, 0, width, height, 0);
+			MoveWindow(hFfplay, 0, 0, swidth, sheight, 0);
 		}
 		EnumWindows(EnumWindowsProc, 0);// 找到第二个workerw窗口并隐藏它
 	}
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
+}
+
+void runProbe(CString path,CString pathShow) {
+	CString temp2 = L"-v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1 -print_format ini > \"" + path + L"\\ffplay\\bin\\temp.ini\" 2>&1 \"" + pathShow + L"\"";
+	CString bpath = path + L"\\ffplay\\bin\\ffprobe.exe";
+	CString strcmd = bpath + L" " + temp2; 
+	USES_CONVERSION;
+	char* strCmd = W2A(strcmd);
+	system(strCmd);
 }
 
 void CwlppegnuiDlg::OnApply()
@@ -433,15 +449,29 @@ void CwlppegnuiDlg::OnApply()
 	if (m_mute.GetCheck()) {
 		fcmd += _T(" -an");
 	}
+	bool bigger = false;
 	if (fulFill.GetCheck()) {
-		CString sHeight;sHeight.Format(L"%d", cRect.height);
-		fcmd += L" -y " + sHeight;
+		runProbe(path, pathShow);
+		Sleep(50);
+		int width = GetPrivateProfileInt(L"streams.stream.0", L"width", 0, path + L"\\ffplay\\bin\\temp.ini");
+		int height = GetPrivateProfileInt(L"streams.stream.0", L"height", 0, path + L"\\ffplay\\bin\\temp.ini");
+		bigger = (double(width) / height) > cRect.proPortion;
+		if (bigger) {
+			CString sHeight;
+			sHeight.Format(L"%d", cRect.height);
+			fcmd += L" -y " + sHeight;
+		}
+		else {
+			CString sWidth;
+			sWidth.Format(L"%d", cRect.width);
+			fcmd += L" -x " + sWidth;
+		}
 	}
 	else {
 		fcmd += L" -fs";
 	}
 	LPCWSTR tempStr = fcmd;
-	ShowW(tempStr,ffpath,fulFill.GetCheck());
+	ShowW(tempStr,ffpath,fulFill.GetCheck(),bigger);
 }
 
 
