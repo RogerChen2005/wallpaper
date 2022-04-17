@@ -211,6 +211,7 @@
     <None Include="res\wlppegnui.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\vw.ico" />
     <Image Include="res\wlppegnui.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

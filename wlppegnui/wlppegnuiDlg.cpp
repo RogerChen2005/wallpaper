@@ -88,6 +88,17 @@ LRESULT  CwlppegnuiDlg::OnNotifyMsg(WPARAM wparam, LPARAM lparam)
 	return 0;
 }
 
+void saveConfig(conFig& config)
+{
+	WritePrivateProfileString(_T("Path"), _T("path"), config.path, config.location);
+	CString tempInt; tempInt.Format(_T("%d"), config.mute);
+	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, config.location);
+	tempInt.Format(_T("%d"), config.full);
+	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, config.location);
+	WritePrivateProfileString(_T("Extra"), _T("Cmd"), config.Cmd, config.location);
+	WritePrivateProfileString(_T("Settings"), _T("name"), config.name, config.location);
+}
+
 
 CwlppegnuiDlg::CwlppegnuiDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_WLPPEGNUI_DIALOG, pParent)
@@ -115,7 +126,7 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_NEW, &CwlppegnuiDlg::OnNew)
 	ON_LBN_DBLCLK(IDC_CONFIG, &CwlppegnuiDlg::OnDblclkConfig)
-//	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
+	//	ON_LBN_SETFOCUS(IDC_CONFIG, &CwlppegnuiDlg::OnSetfocusConfig)
 	ON_BN_CLICKED(IDC_APPLY, &CwlppegnuiDlg::OnApply)
 	ON_LBN_SELCHANGE(IDC_CONFIG, &CwlppegnuiDlg::OnSelchangeConfig)
 	ON_WM_CLOSE()
@@ -127,6 +138,7 @@ BEGIN_MESSAGE_MAP(CwlppegnuiDlg, CDialogEx)
 	ON_WM_CTLCOLOR()
 	ON_COMMAND(ID_32771, &CwlppegnuiDlg::OnSetPath)
 	ON_COMMAND(ID_32774, &CwlppegnuiDlg::OnPause)
+	ON_COMMAND(ID_32777, &CwlppegnuiDlg::OnStartUp)
 END_MESSAGE_MAP()
 
 void CwlppegnuiDlg::readConfig(CString pathname) {
@@ -206,13 +218,6 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	for (int i = 0; i < Size;i++){
 		m_config.InsertString(i,configs[i].name);
 	}
-	if (configs.size()>0) {
-		m_config.SetCurSel(0);
-		pathShow = configs[0].path;
-		m_mute.SetCheck(configs[0].mute);
-		fulFill.SetCheck(configs[0].full);
-		cmdShow = configs[0].Cmd;
-	}
 	m_notify.cbSize = sizeof(NOTIFYICONDATA);
 	m_notify.hWnd = this->m_hWnd;
 	m_notify.uID = IDR_MAINFRAME;
@@ -221,6 +226,35 @@ BOOL CwlppegnuiDlg::OnInitDialog()
 	m_notify.uCallbackMessage = WM_USER_NOTIFYICON;
 	m_notify.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 	Shell_NotifyIcon(NIM_ADD, &m_notify);
+	if (configs.size() > 0) {
+		m_config.SetCurSel(0);
+		/*pathShow = configs[0].path;
+		m_mute.SetCheck(configs[0].mute);
+		fulFill.SetCheck(configs[0].full);
+		cmdShow = configs[0].Cmd;*/
+		refreshWindow(configs[0]);
+		Apply(configs[0]);
+	}
+	else {
+		CTime time;
+		time = CTime::GetCurrentTime();
+		CString tempInt = time.Format(_T("%Y-%m-%d-%H-%M-%S"));
+		int index = configs.size();
+		CString tempPath = path + "\\configs\\";
+		tempPath += tempInt + _T(".ini");
+		conFig temp;
+		temp.location = tempPath;
+		temp.name = L"Default config";
+		CFileFind finder;
+		BOOL ifFind = finder.FindFile(tempPath);
+		if (!ifFind) {
+			configs.push_back(temp);
+			saveConfig(configs[index]);
+			m_config.InsertString(index, configs[index].name);
+			m_config.SetCurSel(index);
+			refreshWindow(temp);
+		}
+	}
 	UpdateData(FALSE);
 	return true;
 }
@@ -297,17 +331,6 @@ HCURSOR CwlppegnuiDlg::OnQueryDragIcon()
 //	WritePrivateProfileString(_T("Extra"), _T("Cmd"), cmdShow, configs[index].location);
 //	UpdateData(FALSE);
 //}
-
-void saveConfig(conFig& config)
-{
-	WritePrivateProfileString(_T("Path"), _T("path"), config.path, config.location);
-	CString tempInt; tempInt.Format(_T("%d"), config.mute);
-	WritePrivateProfileString(_T("Settings"), _T("mute"), tempInt, config.location);
-	tempInt.Format(_T("%d"), config.full);
-	WritePrivateProfileString(_T("Settings"), _T("full"), tempInt, config.location);
-	WritePrivateProfileString(_T("Extra"), _T("Cmd"), config.Cmd, config.location);
-	WritePrivateProfileString(_T("Settings"), _T("name"), config.name, config.location);
-}
 
 void CwlppegnuiDlg::OnNew()
 {
@@ -401,7 +424,7 @@ void ShowW(LPCWSTR lpParameter,CString path,bool full, bool horw) {
 	si.wShowWindow = SW_HIDE;
 	PROCESS_INFORMATION pi{ 0 };
 	if (CreateProcess(path, (LPWSTR)lpParameter, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
-		Sleep(500);//等待视频播放器启动完成
+		Sleep(600);//等待视频播放器启动完成
 		HWND hProgman = FindWindow(L"Progman", 0);// 找到PI窗口
 		SendMessageTimeout(hProgman, 0x052c, 0, 0, 0, 100, 0);// 给它发特殊消息
 		hFfplay = FindWindow(L"SDL_app", 0);// 找到视频窗口
@@ -440,18 +463,16 @@ void runProbe(CString path,CString pathShow) {
 	system(strCmd);
 }
 
-void CwlppegnuiDlg::OnApply()
-{
-	// TODO: 在此添加控件通知处理程序代码
+void CwlppegnuiDlg::Apply(conFig &config) {
 	CString fcmd = _T(" \"");
-	fcmd += pathShow + _T("\"");
+	fcmd += config.path + _T("\"");
 	fcmd += _T(" -noborder -loop 0");
-	if (m_mute.GetCheck()) {
+	if (config.mute) {
 		fcmd += _T(" -an");
 	}
 	bool bigger = false;
-	if (fulFill.GetCheck()) {
-		runProbe(path, pathShow);
+	if (config.full) {
+		runProbe(path, config.path);
 		Sleep(50);
 		int width = GetPrivateProfileInt(L"streams.stream.0", L"width", 0, path + L"\\ffplay\\bin\\temp.ini");
 		int height = GetPrivateProfileInt(L"streams.stream.0", L"height", 0, path + L"\\ffplay\\bin\\temp.ini");
@@ -471,7 +492,14 @@ void CwlppegnuiDlg::OnApply()
 		fcmd += L" -fs";
 	}
 	LPCWSTR tempStr = fcmd;
-	ShowW(tempStr,ffpath,fulFill.GetCheck(),bigger);
+	ShowW(tempStr, ffpath, config.full, bigger);
+
+}
+void CwlppegnuiDlg::OnApply()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	return Apply(configs[m_config.GetCurSel()]);
+	
 }
 
 
@@ -633,13 +661,13 @@ void Pause() {
 	SetForegroundWindow(hFfplay);
 	Sleep(100);
 	INPUT input;
-	WORD vkey = 0x50; // see link below
+	WORD vkey = 0x50; 
 	input.type = INPUT_KEYBOARD;
 	input.ki.wScan = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
 	input.ki.time = 0;
 	input.ki.dwExtraInfo = 0;
 	input.ki.wVk = vkey;
-	input.ki.dwFlags = 0; // there is no KEYEVENTF_KEYDOWN
+	input.ki.dwFlags = 0;
 	SendInput(1, &input, sizeof(INPUT));
 	input.ki.dwFlags = KEYEVENTF_KEYUP;
 	SendInput(1, &input, sizeof(INPUT));
@@ -653,4 +681,30 @@ void CwlppegnuiDlg::OnPause()
 		Pause();
 		SetForegroundWindow();
 	}
+}
+
+void CwlppegnuiDlg::OnStartUp()
+{
+	// TODO: 在此添加命令处理程序代码
+	TCHAR pFileName[MAX_PATH] = {};
+	GetModuleFileName(NULL, pFileName, MAX_PATH);
+	HKEY hkey;
+	DWORD dwLen = MAX_PATH;
+	int ret = RegOpenKeyEx(HKEY_CURRENT_USER,_T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\"),0, KEY_WRITE, &hkey);
+	if (ret != ERROR_SUCCESS){return;}
+	TCHAR path_Get[MAX_PATH] = {};
+	DWORD nLongth = MAX_PATH;
+	long result = RegGetValueW(HKEY_CURRENT_USER, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\"), _T("VideoWallpaper"), RRF_RT_REG_SZ,0, path_Get, &nLongth);
+	if (!result == ERROR_SUCCESS){
+		if (RegSetValueEx(hkey, _T("VideoWallpaper"), 0, REG_SZ, (LPBYTE)pFileName, dwLen) == ERROR_SUCCESS) {
+			MessageBox(L"成功创建启动任务");
+		}
+	}
+	else{
+		if (RegDeleteValue(hkey, _T("VideoWallpaper"))  == ERROR_SUCCESS) {
+			MessageBox(L"成功取消启动任务");
+		}
+	}
+	RegCloseKey(hkey);
+	return;
 }

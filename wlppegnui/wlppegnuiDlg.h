@@ -77,7 +77,9 @@ public:
 	afx_msg void OnNew();
 	afx_msg void OnDblclkConfig();
 //	afx_msg void OnSetfocusConfig();
-	afx_msg void OnApply();
+	afx_msg
+	void Apply(conFig& config);
+	void OnApply();
 	afx_msg void OnSelchangeConfig();
 	CString pathShow;
 	CString cmdShow;
@@ -100,4 +102,5 @@ public:
 	afx_msg void OnSetPath();
 	CButton fulFill;
 	afx_msg void OnPause();
+	afx_msg void OnStartUp();
 };
